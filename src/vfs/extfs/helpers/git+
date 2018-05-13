@@ -1,34 +1,71 @@
 #!/bin/sh
 
+#License MIT
+#Author: vbspam at centrum do t cz
+#Based on: original gitfs+
+#Description: The original MC gitfs+ browse only the local repository and shows (for me) boring stuff when file openned.
+#             This modification adds two new features someone may like:
+#             - posibility to browse all commits
+#             - shows real file content instead of the 'boring stuff'
+#Todo: 
+# - Incorporate commit comments somehow.
+# - Browse branches
+# - Browse remotes/branches
+# ..?
+#Contains: bugs and bashisms :-)
+
 LANG=C
 export LANG
 LC_TIME=C
 export LC_TIME
 
 umask 077
-prefix='[git]'
+prefix='[]'
+
 
 gitfs_list()
 {
-    DATE=`date +"%b %d %H:%M"`
+#   cd $2
+    commit_date=`date +"%b %d %H:%M"`
     GIT_DIR="$2/.git"
     user=`whoami`
-    git ls-files -v -c -m -d | sort -k 2 | uniq -f 1 | while read status fname
+    git log --oneline | while read hash commit_comment
     do
-        [ "$status" = "H" ] && status=" "
-        [ "$status" = "C" ] && status="*"
-        echo "-r--r--r--   1 $user     0  0 $DATE `dirname $fname`/$prefix$status`basename $fname`"
+      #echo $hash
+      #echo $commit_comment
+      git show -s --pretty="%cd" --date=format:"%b %d %H:%M"  -r $hash |read commit_date
+      git show --no-commit-id --name-only --pretty=""  -r $hash | while read commit_file
+      do
+        final_file=$hash/$commit_file
+#        echo $commit_date
+#        echo $commit_file
+#	echo $final_file
+	prefix="[$hash]"
+        echo "-r--r--r--   1 $user     0  0 $commit_date `dirname $final_file`/$prefix$status`basename $final_file`"
+      done
     done
+
+#    git ls-files -v -c -m -d | sort -k 2 | uniq -f 1 | while read status fname
+#    do
+#        [ "$status" = "H" ] && status=" "
+#        [ "$status" = "C" ] && status="*"
+#        echo "-r--r--r--   1 $user     0  0 $DATE `dirname $fname`/$prefix$status`basename $fname`"
+#    done
 }
 
 gitfs_copyout()
 {
-    printf "%s\n" "$2" > "$4"
-    b=`echo "$prefix"| wc -c`
-    b=`expr "$b" + 1`
-    # remove prefix from file name
-    echo "`dirname "$3"`/`basename "$3" | tail -c+"$b"`" >> "$4"
-    echo "git" >> "$4"
+#    printf "$2\n" > "$4"
+#    b=`echo "$prefix"| wc -c`
+#    b=`expr "$b" + 1`
+#    # remove prefix from file name
+#    echo "`dirname "$3"`/`basename "$3" | tail -c+"$b"`" >> "$4"
+#    echo "git" >> "$4"
+    hash=`echo $3 |sed -e "s/\/.*//"`
+    filename=`echo $3 |sed -e "s/\[$hash\]//"|sed -e "s/$hash\///"`
+#    echo hash=$hash >>$4
+#    echo filename=$filename >>$4
+    git show $hash:$filename >>$4
 }
 
 case "$1" in
